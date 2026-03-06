@@ -12,6 +12,11 @@ interface GitHubRepo {
   url: string;
 }
 
+interface ZoomAction {
+  type: 'in' | 'out' | 'reset';
+  ts: number;
+}
+
 interface GraphState {
   graphId: string | null;
   nodes: any[];
@@ -21,6 +26,9 @@ interface GraphState {
   loading: boolean;
   error: string | null;
   filterTypes: string[];
+
+  // Zoom
+  _zoomAction: ZoomAction | null;
 
   // Repo selection
   availableRepos: GitHubRepo[];
@@ -34,10 +42,14 @@ interface GraphState {
   deselectAllRepos: () => void;
   clearRepos: () => void;
 
+  loadUserGraph: () => Promise<void>;
   buildGraph: (resumeText: string | null, githubUsername: string | null) => Promise<void>;
   fetchGraph: (id: string) => Promise<void>;
   selectNode: (node: any | null) => void;
   toggleFilter: (type: string) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetView: () => void;
   reset: () => void;
 }
 
@@ -50,6 +62,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   loading: false,
   error: null,
   filterTypes: [],
+  _zoomAction: null,
 
   availableRepos: [],
   selectedRepos: [],
@@ -95,6 +108,23 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     set({ availableRepos: [], selectedRepos: [], reposError: null });
   },
 
+  loadUserGraph: async () => {
+    if (get().nodes.length > 0) return; // Already loaded
+    set({ loading: true, error: null });
+    try {
+      const { data } = await api.get('/graph/user/latest');
+      set({
+        graphId: data._id,
+        nodes: data.nodes || [],
+        edges: data.edges || [],
+        metadata: data.metadata,
+        loading: false,
+      });
+    } catch {
+      set({ loading: false });
+    }
+  },
+
   buildGraph: async (resumeText, githubUsername) => {
     set({ loading: true, error: null });
     try {
@@ -134,8 +164,13 @@ export const useGraphStore = create<GraphState>((set, get) => ({
         : [...current, type],
     });
   },
+
+  zoomIn: () => set({ _zoomAction: { type: 'in', ts: Date.now() } }),
+  zoomOut: () => set({ _zoomAction: { type: 'out', ts: Date.now() } }),
+  resetView: () => set({ _zoomAction: { type: 'reset', ts: Date.now() } }),
+
   reset: () => set({
     graphId: null, nodes: [], edges: [], metadata: null, selectedNode: null, error: null,
-    availableRepos: [], selectedRepos: [], reposError: null,
+    availableRepos: [], selectedRepos: [], reposError: null, _zoomAction: null,
   }),
 }));

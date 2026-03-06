@@ -150,9 +150,17 @@ class ScrapeOrchestrator {
   private async enrichWithNLP(results: ScrapeResult[]): Promise<void> {
     logger.info(`[Orchestrator] Starting NLP enrichment for ${results.length} jobs...`);
     let enriched = 0;
+    let consecutiveFailures = 0;
+    const MAX_CONSECUTIVE_FAILURES = 5;
 
     const batchSize = TUNING.GEMINI_BATCH_SIZE;
     for (let i = 0; i < results.length; i += batchSize) {
+      // If API is persistently down, stop wasting requests
+      if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+        logger.warn(`[Orchestrator] ${MAX_CONSECUTIVE_FAILURES} consecutive NLP failures — API appears unreachable. Skipping remaining ${results.length - i} jobs.`);
+        break;
+      }
+
       const batch = results.slice(i, i + batchSize);
 
       await Promise.allSettled(
@@ -189,7 +197,9 @@ class ScrapeOrchestrator {
               );
 
               enriched++;
+              consecutiveFailures = 0;
             } catch (err: any) {
+              consecutiveFailures++;
               logger.error(`[Orchestrator] NLP failed for "${raw.title}": ${err.message}`);
             }
           })

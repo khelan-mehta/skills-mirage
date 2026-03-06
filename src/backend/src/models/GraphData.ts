@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IGraphData extends Document {
+  userId?: mongoose.Types.ObjectId;
   nodes: Array<{
     id: string;
     label: string;
@@ -50,6 +51,7 @@ const EdgeSchema = new Schema(
 
 const GraphDataSchema = new Schema<IGraphData>(
   {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
     nodes: { type: [NodeSchema], default: [] },
     edges: { type: [EdgeSchema], default: [] },
     metadata: {

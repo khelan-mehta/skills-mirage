@@ -113,12 +113,17 @@ The write-up is the most important signal. Be thorough. Return ONLY JSON.`
 
     return this.semaphore.acquire(async () => {
       await this.rateLimiter.wait();
-      const text = await this.chatCompletion(
-        `Normalize this Indian job title to a standard form. Return ONLY the normalized title, nothing else.
+      return withRetry(
+        async () => {
+          const text = await this.chatCompletion(
+            `Normalize this Indian job title to a standard form. Return ONLY the normalized title, nothing else.
 Examples: "Sr. Executive - BPO" → "senior executive bpo", "Jr. Software Dev" → "junior software developer"
 Title: ${rawTitle}`
+          );
+          return text.toLowerCase();
+        },
+        { attempts: TUNING.GEMINI_RETRY_ATTEMPTS, baseDelayMs: TUNING.GEMINI_RETRY_BASE_MS }
       );
-      return text.toLowerCase();
     });
   }
 
@@ -358,6 +363,48 @@ Example: ["react", "python", "aws", "docker", "communication"]`
           const parsed = JSON.parse(text.replace(/```json\n?|```/g, '').trim());
           if (Array.isArray(parsed)) return parsed.map((s: string) => s.toLowerCase().trim());
           return extractedSkills;
+        },
+        { attempts: TUNING.GEMINI_RETRY_ATTEMPTS, baseDelayMs: TUNING.GEMINI_RETRY_BASE_MS }
+      );
+    });
+  }
+
+  async expandSkillsForSearch(
+    skills: string[],
+    jobTitle: string,
+    city: string
+  ): Promise<string[]> {
+    if (!this.available || skills.length === 0) {
+      return skills.map(s => s.toLowerCase().trim());
+    }
+
+    return this.semaphore.acquire(async () => {
+      await this.rateLimiter.wait();
+      return withRetry(
+        async () => {
+          const text = await this.chatCompletion(
+            `You are an Indian job market expert. Given a worker's skills and job title, expand them into a comprehensive list of related search terms that would appear in Indian job listings (Naukri, LinkedIn India).
+
+Worker's skills: ${JSON.stringify(skills)}
+Current job title: ${jobTitle}
+City: ${city}
+
+For EACH skill, generate:
+1. The skill itself (lowercased)
+2. Common abbreviations and alternate spellings (e.g. "javascript" → "js", "node.js" → "nodejs", "react" → "reactjs")
+3. Closely related frameworks/tools (e.g. "react" → "redux", "next.js"; "python" → "django", "flask", "fastapi")
+4. Adjacent skills that appear in similar job listings (e.g. "react" → "frontend", "typescript", "tailwind")
+5. Indian-market-specific terms and variations
+
+Also add skills commonly required alongside the given job title.
+
+Return ONLY a JSON array of unique lowercase strings. No markdown, no explanation. Aim for 30-80 terms.`
+          );
+          const parsed = JSON.parse(text.replace(/```json\n?|```/g, '').trim());
+          if (Array.isArray(parsed)) {
+            return [...new Set(parsed.map((s: string) => s.toLowerCase().trim()).filter(Boolean))];
+          }
+          return skills.map(s => s.toLowerCase().trim());
         },
         { attempts: TUNING.GEMINI_RETRY_ATTEMPTS, baseDelayMs: TUNING.GEMINI_RETRY_BASE_MS }
       );

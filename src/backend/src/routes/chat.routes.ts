@@ -38,14 +38,18 @@ chatRoutes.post('/', async (req: Request, res: Response) => {
       processedMessage = await geminiService.translateToEnglish(message);
     }
 
-    // Retrieve RAG context from user's ChromaDB knowledge base (parallel with market data)
-    const [marketData, ragChunks, chatHistory] = await Promise.all([
+    // Retrieve RAG context, market data, matched jobs (parallel)
+    const [marketData, ragChunks, chatHistory, chatJobs] = await Promise.all([
       workerService.getMarketContext(profile),
       ragService.retrieve(userId, processedMessage, 8).catch((err) => {
         logger.warn(`[Chat] RAG retrieval failed: ${err.message}`);
         return [];
       }),
       ChatMessage.find({ workerId }).sort({ timestamp: -1 }).limit(10).lean(),
+      workerService.getChatMatchedJobs(profile, 5).catch((err) => {
+        logger.warn(`[Chat] Matched jobs failed: ${err.message}`);
+        return [];
+      }),
     ]);
 
     // Build RAG context string for the LLM
@@ -99,6 +103,15 @@ chatRoutes.post('/', async (req: Request, res: Response) => {
       response,
       language: detectedLang,
       ragChunksUsed: ragChunks.length,
+      ragSources: ragChunks.map(c => ({
+        source: c.source,
+        chunkType: c.chunkType,
+        summary: c.content.slice(0, 200) + (c.content.length > 200 ? '...' : ''),
+        repoName: c.metadata?.repoName || null,
+        score: Math.round(c.score * 100),
+      })),
+      matchedJobs: chatJobs,
+      marketInsights: marketData,
       timestamp: new Date(),
     });
   } catch (err: any) {

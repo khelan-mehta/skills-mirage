@@ -45,6 +45,7 @@ class GraphService {
 
     // Save to MongoDB
     const graph = new GraphData({
+      userId: userId || undefined,
       nodes: graphResult.nodes || [],
       edges: graphResult.edges || [],
       metadata: {
@@ -94,6 +95,10 @@ class GraphService {
 
   async getGraph(id: string): Promise<IGraphData | null> {
     return GraphData.findById(id);
+  }
+
+  async getLatestForUser(userId: string): Promise<IGraphData | null> {
+    return GraphData.findOne({ userId }).sort({ createdAt: -1 });
   }
 
   async getNodes(id: string) {

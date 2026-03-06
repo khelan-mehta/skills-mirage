@@ -50,6 +50,22 @@ graphRoutes.post('/rag/query', async (req: Request, res: Response) => {
   }
 });
 
+// ─── User's saved graph ─────────────────────────────────────────────────────
+
+graphRoutes.get('/user/latest', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const graph = await graphService.getLatestForUser(userId);
+    if (!graph) return res.status(404).json({ error: 'No graph found' });
+    res.json(graph);
+  } catch (err: any) {
+    logger.error('Fetch latest graph error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch graph' });
+  }
+});
+
 // ─── GitHub & Graph endpoints ───────────────────────────────────────────────
 
 graphRoutes.get('/github-repos/:username', async (req: Request, res: Response) => {

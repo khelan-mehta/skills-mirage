@@ -122,6 +122,88 @@ class WorkerService {
     return profile;
   }
 
+  async getChatMatchedJobs(profile: IWorkerProfile, limit = 5): Promise<any[]> {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000);
+    const userSkills = profile.extractedSkills || [];
+
+    try {
+      // Use LLM to expand skills into comprehensive search terms
+      const expandedSkills = await geminiService.expandSkillsForSearch(
+        userSkills,
+        profile.normalizedTitle,
+        profile.city
+      );
+
+      logger.info(`[ChatJobs] Expanded ${userSkills.length} skills to ${expandedSkills.length} search terms`);
+
+      if (expandedSkills.length === 0) return [];
+
+      const matchedJobs = await JobListing.aggregate([
+        {
+          $match: {
+            city: profile.city,
+            scrapedAt: { $gte: thirtyDaysAgo },
+          },
+        },
+        {
+          $addFields: {
+            skillsLower: {
+              $map: { input: '$skills', as: 's', in: { $toLower: '$$s' } },
+            },
+          },
+        },
+        {
+          $match: {
+            skillsLower: { $in: expandedSkills },
+          },
+        },
+        {
+          $addFields: {
+            matchScore: {
+              $size: { $setIntersection: ['$skillsLower', expandedSkills] },
+            },
+            totalSkills: { $size: '$skills' },
+          },
+        },
+        { $sort: { matchScore: -1, scrapedAt: -1 } },
+        { $limit: limit * 3 },
+      ]);
+
+      return matchedJobs.slice(0, limit).map((job: any) => ({
+        _id: job._id,
+        title: job.title,
+        company: job.company,
+        city: job.city,
+        skills: job.skills?.slice(0, 8) || [],
+        salary: job.salary,
+        sourceUrl: job.sourceUrl,
+        source: job.source,
+        matchPercent: job.totalSkills > 0
+          ? Math.min(100, Math.round((job.matchScore / job.totalSkills) * 100))
+          : 0,
+      }));
+    } catch (err: any) {
+      logger.error(`[ChatJobs] Failed: ${err.message}`);
+      // Fallback: simple city-based query
+      const jobs = await JobListing.find({
+        city: profile.city,
+        scrapedAt: { $gte: thirtyDaysAgo },
+      }).sort({ scrapedAt: -1 }).limit(limit).lean();
+
+      return jobs.map((job: any) => ({
+        _id: job._id,
+        title: job.title,
+        company: job.company,
+        city: job.city,
+        skills: job.skills?.slice(0, 8) || [],
+        salary: job.salary,
+        sourceUrl: job.sourceUrl,
+        source: job.source,
+        matchPercent: 0,
+      }));
+    }
+  }
+
   async getMarketContext(profile: IWorkerProfile) {
     const { JobListing } = await import('../models/JobListing');
     const roleRegex = new RegExp(

@@ -1,5 +1,5 @@
-import { useRef, useMemo, useState, useCallback } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Billboard, Text, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGraphStore } from '../../stores/graphStore';
@@ -18,10 +18,8 @@ const NODE_COLORS: Record<string, string> = {
 };
 
 function computeLayout(nodes: any[], edges: any[]) {
-  // Simple force-directed layout using spring model
   const positions = new Map<string, { x: number; y: number; z: number }>();
 
-  // Initialize random positions
   nodes.forEach((node, i) => {
     const angle = (i / nodes.length) * Math.PI * 2;
     const radius = node.type === 'person' ? 0 : 8 + Math.random() * 12;
@@ -32,9 +30,7 @@ function computeLayout(nodes: any[], edges: any[]) {
     });
   });
 
-  // Run simple iterations
   for (let iter = 0; iter < 100; iter++) {
-    // Repulsion between all nodes
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const pi = positions.get(nodes[i].id)!;
@@ -52,7 +48,6 @@ function computeLayout(nodes: any[], edges: any[]) {
       }
     }
 
-    // Attraction along edges
     for (const edge of edges) {
       const ps = positions.get(edge.source);
       const pt = positions.get(edge.target);
@@ -69,7 +64,6 @@ function computeLayout(nodes: any[], edges: any[]) {
       pt.x -= fx; pt.y -= fy; pt.z -= fz;
     }
 
-    // Center gravity
     for (const [_, pos] of positions) {
       pos.x *= 0.98;
       pos.y *= 0.98;
@@ -101,12 +95,10 @@ function GraphNode({ node, position, onClick, isSelected }: any) {
 
   return (
     <group position={[position.x, position.y, position.z]}>
-      {/* Glow */}
       <mesh>
         <sphereGeometry args={[radius * 2, 16, 16]} />
         <meshBasicMaterial color={color} transparent opacity={hovered || isSelected ? 0.15 : 0.04} />
       </mesh>
-      {/* Core */}
       <mesh
         ref={meshRef}
         onClick={(e) => { e.stopPropagation(); onClick(node); }}
@@ -120,7 +112,6 @@ function GraphNode({ node, position, onClick, isSelected }: any) {
           emissiveIntensity={hovered || isSelected ? 0.6 : 0.2}
         />
       </mesh>
-      {/* Label */}
       <Billboard>
         <Text
           fontSize={0.35}
@@ -153,6 +144,27 @@ function GraphEdge({ edge, positions }: any) {
   );
 }
 
+function CameraController() {
+  const { camera } = useThree();
+  const zoomAction = useGraphStore((s) => s._zoomAction);
+  const prevTs = useRef(0);
+
+  useEffect(() => {
+    if (!zoomAction || zoomAction.ts === prevTs.current) return;
+    prevTs.current = zoomAction.ts;
+
+    if (zoomAction.type === 'in') {
+      camera.position.multiplyScalar(0.8);
+    } else if (zoomAction.type === 'out') {
+      camera.position.multiplyScalar(1.25);
+    } else if (zoomAction.type === 'reset') {
+      camera.position.set(0, 0, 35);
+    }
+  }, [zoomAction, camera]);
+
+  return null;
+}
+
 function Scene() {
   const { nodes, edges, selectedNode, selectNode, filterTypes } = useGraphStore();
 
@@ -173,6 +185,8 @@ function Scene() {
       <pointLight position={[10, 10, 10]} intensity={0.8} />
       <Stars radius={100} depth={50} count={1000} factor={2} saturation={0} fade speed={0.5} />
 
+      <CameraController />
+
       {filteredNodes.map((node: any) => {
         const pos = positions.get(node.id);
         if (!pos) return null;
@@ -191,7 +205,7 @@ function Scene() {
         <GraphEdge key={edge.id} edge={edge} positions={positions} />
       ))}
 
-      <OrbitControls enableDamping dampingFactor={0.05} minDistance={5} maxDistance={80} />
+      <OrbitControls enableDamping dampingFactor={0.05} minDistance={2} maxDistance={120} />
     </>
   );
 }

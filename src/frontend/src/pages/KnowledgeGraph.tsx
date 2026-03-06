@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGraphStore } from '../stores/graphStore';
 import { useAuthStore } from '../stores/authStore';
 import GraphCanvas from '../components/knowledge-graph/GraphCanvas';
 import NodeDetail from '../components/knowledge-graph/NodeDetail';
+import InsightsOverlay from '../components/knowledge-graph/InsightsOverlay';
 
 const NODE_TYPES = [
   { type: 'skill', color: '#00bcd4', label: 'Skill' },
@@ -19,8 +20,18 @@ const NODE_TYPES = [
 ];
 
 export default function KnowledgeGraph() {
-  const { nodes, loading, error, buildGraph, filterTypes, toggleFilter, reset } = useGraphStore();
+  const {
+    nodes, edges, loading, error, metadata,
+    buildGraph, filterTypes, toggleFilter, reset,
+    selectedNode, loadUserGraph,
+    zoomIn, zoomOut, resetView,
+  } = useGraphStore();
   const hasData = nodes.length > 0;
+
+  // Auto-load user's latest graph on mount
+  useEffect(() => {
+    loadUserGraph();
+  }, [loadUserGraph]);
 
   return (
     <div className="pt-24 px-8 min-h-screen">
@@ -38,10 +49,11 @@ export default function KnowledgeGraph() {
         <div className="relative">
           <GraphCanvas />
           <NodeDetail />
+          <InsightsOverlay />
 
-          {/* Controls */}
-          <div className="absolute top-4 left-4 space-y-2">
-            <div className="bg-mirage-bg/90 backdrop-blur border border-mirage-border rounded px-4 py-3">
+          {/* Filter Panel — top left */}
+          <div className="absolute top-4 left-4 space-y-2 z-10">
+            <div className="bg-[#0a0a0a]/90 backdrop-blur border border-mirage-border rounded px-4 py-3">
               <p className="text-xs text-white/40 font-mono mb-2">FILTER BY TYPE</p>
               <div className="space-y-1">
                 {NODE_TYPES.map((nt) => (
@@ -60,20 +72,29 @@ export default function KnowledgeGraph() {
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="absolute top-4 right-4 bg-mirage-bg/90 backdrop-blur border border-mirage-border rounded px-4 py-3">
-            <p className="text-xs text-white/40 font-mono mb-1">GRAPH STATS</p>
-            <p className="text-sm font-mono text-mirage-teal">{nodes.length} nodes</p>
-            <button
-              onClick={reset}
-              className="text-xs text-white/30 hover:text-white/60 mt-2 transition-colors"
-            >
-              Reset
-            </button>
-          </div>
+          {/* Stats Panel — top right (hidden when node detail is open) */}
+          {!selectedNode && (
+            <div className="absolute top-4 right-4 z-10">
+              <div className="bg-[#0a0a0a]/90 backdrop-blur border border-mirage-border rounded px-4 py-3">
+                <p className="text-xs text-white/40 font-mono mb-1">GRAPH STATS</p>
+                <p className="text-sm font-mono text-mirage-teal">{nodes.length} nodes / {edges.length} edges</p>
+                {metadata?.personName && (
+                  <p className="text-xs text-white/30 mt-1">{metadata.personName}</p>
+                )}
+                <div className="flex gap-3 mt-2">
+                  <button
+                    onClick={reset}
+                    className="text-xs text-white/30 hover:text-white/60 transition-colors"
+                  >
+                    New Graph
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
-          {/* Legend */}
-          <div className="absolute bottom-4 left-4 bg-mirage-bg/90 backdrop-blur border border-mirage-border rounded px-4 py-3">
+          {/* Legend — bottom left */}
+          <div className="absolute bottom-4 left-4 bg-[#0a0a0a]/90 backdrop-blur border border-mirage-border rounded px-4 py-3 z-10">
             <p className="text-xs text-white/40 font-mono mb-2">NODE TYPES</p>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
               <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[#00d4aa]" /> Person</span>
@@ -83,6 +104,31 @@ export default function KnowledgeGraph() {
                 </span>
               ))}
             </div>
+          </div>
+
+          {/* Zoom Controls — bottom right */}
+          <div className="absolute bottom-4 right-4 flex flex-col gap-1.5 z-10">
+            <button
+              onClick={zoomIn}
+              className="w-9 h-9 bg-[#0a0a0a]/90 backdrop-blur border border-mirage-border rounded text-mirage-teal hover:bg-mirage-teal/10 transition-colors font-mono text-lg flex items-center justify-center"
+              title="Zoom in"
+            >
+              +
+            </button>
+            <button
+              onClick={zoomOut}
+              className="w-9 h-9 bg-[#0a0a0a]/90 backdrop-blur border border-mirage-border rounded text-mirage-teal hover:bg-mirage-teal/10 transition-colors font-mono text-lg flex items-center justify-center"
+              title="Zoom out"
+            >
+              -
+            </button>
+            <button
+              onClick={resetView}
+              className="w-9 h-9 bg-[#0a0a0a]/90 backdrop-blur border border-mirage-border rounded text-white/40 hover:text-mirage-teal hover:bg-mirage-teal/10 transition-colors font-mono text-xs flex items-center justify-center"
+              title="Reset view"
+            >
+              &#x21BB;
+            </button>
           </div>
         </div>
       )}
