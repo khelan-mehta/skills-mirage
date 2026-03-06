@@ -1,0 +1,82 @@
+# =========================
+# Node
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Build outputs
+# =========================
+dist/
+build/
+.next/
+out/
+
+# =========================
+# Environment variables
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Docker
+# =========================
+docker-data/
+*.pid
+
+# =========================
+# Database / Vector DB
+# =========================
+chromadb-data/
+*.sqlite3
+*.db
+
+# =========================
+# Coverage
+# =========================
+coverage/
+
+# =========================
+# Temp
+# =========================
+tmp/
+temp/
+
+# =========================
+# Claude / AI configs
+# =========================
+.claude/settings.local.json
+
+# =========================
+# Frontend
+# =========================
+src/frontend/node_modules/
+src/frontend/dist/
+
+# =========================
+# Backend
+# =========================
+src/backend/node_modules/
+src/backend/dist/

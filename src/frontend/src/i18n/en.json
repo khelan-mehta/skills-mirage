@@ -1,0 +1,49 @@
+{
+  "nav": {
+    "dashboard": "DASHBOARD",
+    "worker": "WORKER ENGINE",
+    "graph": "KNOWLEDGE GRAPH",
+    "chat": "CHATBOT",
+    "getStarted": "GET STARTED"
+  },
+  "hero": {
+    "tagline": "AI-native workforce intelligence for India",
+    "heading": "Reimagining Workforce Intelligence from first principles",
+    "scroll": "SCROLL"
+  },
+  "dashboard": {
+    "title": "Three Tabs. All Live. All Data-Derived.",
+    "subtitle": "Real scraping from Naukri + LinkedIn. Refreshes live.",
+    "tabHiring": "Hiring Trends",
+    "tabSkills": "Skills Intelligence",
+    "tabVulnerability": "AI Vulnerability Index",
+    "refresh": "REFRESH LIVE"
+  },
+  "worker": {
+    "title": "What the Worker Tells You",
+    "subtitle": "No CV. No long forms. Four inputs — the system does the heavy lifting.",
+    "jobTitle": "Current Job Title",
+    "city": "City",
+    "experience": "Years of Experience",
+    "writeUp": "Short Write-Up (100–200 words)",
+    "writeUpHint": "THE MOST IMPORTANT INPUT",
+    "analyze": "ANALYZE MY PROFILE"
+  },
+  "chat": {
+    "title": "Context-Aware Career Advisor",
+    "placeholder": "Ask about your risk, reskilling paths, or job market...",
+    "send": "SEND",
+    "quickActions": {
+      "whyRisk": "Why is my risk score high?",
+      "saferJobs": "What jobs are safer for me?",
+      "shortPaths": "Paths under 3 months",
+      "jobCount": "How many jobs in my city?",
+      "hindi": "मुझे क्या करना चाहिए?"
+    }
+  },
+  "graph": {
+    "title": "Your Professional Universe",
+    "subtitle": "Upload your resume + GitHub URL. See your skills as a 3D graph.",
+    "upload": "BUILD MY KNOWLEDGE GRAPH"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "skills-mirage",
+  "version": "1.0.0",
+  "description": "India's first open workforce intelligence system — HACKaMINeD 2026",
+  "private": true,
+  "workspaces": ["src/frontend", "src/backend"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd src/frontend && npm run dev",
+    "dev:backend": "cd src/backend && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd src/frontend && npm run build",
+    "build:backend": "cd src/backend && npm run build",
+    "scrape:naukri": "cd src/backend && npx ts-node src/scrapers/naukri.scraper.ts",
+    "scrape:github": "cd src/backend && npx ts-node src/scrapers/github.scraper.ts",
+    "db:seed": "cd src/backend && npx ts-node src/scripts/seed.ts",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
