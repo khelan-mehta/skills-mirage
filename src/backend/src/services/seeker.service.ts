@@ -494,7 +494,19 @@ class SeekerService {
     const userSkills = profile.extractedSkills || [];
     const ragChunks = await ragService.retrieve(userId, `Skills and experience: ${userSkills.join(', ')}`, 15).catch(() => []);
 
-    if (ragChunks.length === 0) return { insights: [], summary: 'No knowledge base data. Upload your resume or connect GitHub to get personalized insights.' };
+    if (ragChunks.length === 0) {
+      // Fallback: check if any starred job already has embedded RAG insights
+      const embeddedInsights = user.starredJobs
+        ?.map((s: any) => s.reskillPlan?.ragInsights)
+        .find((ri: any) => ri && (ri.insights?.length > 0 || ri.hiddenStrengths?.length > 0));
+
+      if (embeddedInsights) {
+        logger.info(`[RAG] ChromaDB returned 0 chunks but found embedded insights from starred job`);
+        return embeddedInsights;
+      }
+
+      return { insights: [], summary: 'No knowledge base data. Upload your resume or connect GitHub to get personalized insights.' };
+    }
 
     const insights = await geminiService.parseRAGInsights(ragChunks, userSkills);
     return { ...insights, chunksUsed: ragChunks.length, rawChunks: ragChunks.slice(0, 10) };

@@ -9,6 +9,7 @@
     "seed": "ts-node src/scripts/seed.ts"
   },
   "dependencies": {
+    "@chroma-core/default-embed": "^0.1.9",
     "@octokit/rest": "^20.0.0",
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.0.0",

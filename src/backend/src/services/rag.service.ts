@@ -123,7 +123,8 @@ export interface RAGChunk {
 
 class RAGService {
   private chroma: ChromaClient;
-  private openai: OpenAI | null;
+  private _openai: OpenAI | null = null;
+  private _openaiInitialized = false;
   private embeddingModel = 'text-embedding-3-small';
   private ready = false;
 
@@ -132,7 +133,18 @@ class RAGService {
       host: process.env.CHROMA_HOST || 'localhost',
       port: parseInt(process.env.CHROMA_PORT || '8000', 10),
     });
-    this.openai = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
+  }
+
+  /** Lazy-init OpenAI so dotenv has time to load before we read the key */
+  private get openai(): OpenAI | null {
+    if (!this._openaiInitialized) {
+      const key = process.env.OPENAI_API_KEY || env.OPENAI_API_KEY;
+      this._openai = key ? new OpenAI({ apiKey: key }) : null;
+      this._openaiInitialized = true;
+      if (this._openai) logger.info('[RAG] OpenAI client initialized for embeddings');
+      else logger.warn('[RAG] No OPENAI_API_KEY found — embedding-based queries will be unavailable');
+    }
+    return this._openai;
   }
 
   /**
@@ -473,11 +485,24 @@ class RAGService {
           include: ['documents', 'metadatas', 'distances'],
         });
       } else {
-        // Fallback to text-based query (ChromaDB default embedding)
-        results = await collection.query({
-          queryTexts: [query],
-          nResults: k,
-          include: ['documents', 'metadatas', 'distances'],
+        // No OpenAI embeddings available — fall back to fetching all chunks
+        // (queryTexts would fail if default embedder dimension != stored dimension)
+        logger.warn('[RAG] No OpenAI embeddings, falling back to get() for retrieval');
+        const allDocs = await collection.get({
+          limit: k,
+          include: ['documents', 'metadatas'],
+        });
+
+        return (allDocs.documents || []).map((doc, idx) => {
+          const meta = allDocs.metadatas?.[idx] || {};
+          return {
+            content: doc || '',
+            source: String(meta.source || ''),
+            chunkType: String(meta.chunkType || ''),
+            skills: String(meta.skills || '').split(',').filter(Boolean),
+            metadata: meta as Record<string, any>,
+            score: 0.5, // uniform score since we can't rank without embeddings
+          };
         });
       }
 
@@ -532,12 +557,19 @@ class RAGService {
           include: ['documents', 'metadatas', 'distances'],
         });
       } else {
-        results = await collection.query({
-          queryTexts: [query],
-          nResults: k,
+        // Fallback: get all chunks filtered by source (no embedding needed)
+        logger.warn('[RAG] No OpenAI embeddings, falling back to get() for source-filtered retrieval');
+        const allDocs = await collection.get({
+          limit: k,
           where,
-          include: ['documents', 'metadatas', 'distances'],
+          include: ['documents', 'metadatas'],
         });
+
+        return (allDocs.documents || []).map((doc, idx) => ({
+          content: doc || '',
+          score: 0.5,
+          metadata: (allDocs.metadatas?.[idx] || {}) as Record<string, any>,
+        }));
       }
 
       if (!results.documents?.[0]) return [];
