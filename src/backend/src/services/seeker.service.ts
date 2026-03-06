@@ -129,6 +129,34 @@ function fuzzySkillMatch(userSkill: string, jobSkill: string): boolean {
   return levenshtein(a, b) <= threshold;
 }
 
+// Related job titles — titles that should cross-match
+const RELATED_TITLES: Record<string, string[]> = {
+  'software developer': ['full stack developer', 'frontend developer', 'backend developer', 'web developer', 'software engineer'],
+  'full stack developer': ['software developer', 'frontend developer', 'backend developer', 'web developer'],
+  'frontend developer': ['software developer', 'full stack developer', 'web developer', 'ui/ux designer'],
+  'backend developer': ['software developer', 'full stack developer', 'devops engineer'],
+  'web developer': ['software developer', 'full stack developer', 'frontend developer'],
+  'data analyst': ['data scientist', 'data entry operator', 'data engineer'],
+  'data scientist': ['data analyst', 'machine learning engineer', 'data engineer'],
+  'machine learning engineer': ['data scientist', 'software developer', 'data analyst'],
+  'devops engineer': ['cloud engineer', 'backend developer', 'software developer'],
+  'cloud engineer': ['devops engineer', 'software developer'],
+  'bpo executive': ['telecaller', 'receptionist', 'sales executive', 'hr executive'],
+  'telecaller': ['bpo executive', 'sales executive'],
+  'data entry operator': ['data analyst', 'accountant', 'bpo executive'],
+  'content writer': ['graphic designer', 'marketing executive'],
+  'graphic designer': ['ui/ux designer', 'content writer'],
+  'ui/ux designer': ['graphic designer', 'frontend developer'],
+  'project manager': ['hr executive', 'sales executive'],
+  'cybersecurity analyst': ['devops engineer', 'cloud engineer', 'software developer'],
+  'accountant': ['data entry operator', 'hr executive'],
+  'hr executive': ['project manager', 'bpo executive', 'sales executive'],
+  'sales executive': ['bpo executive', 'telecaller', 'hr executive'],
+  'teacher': ['content writer'],
+  'receptionist': ['bpo executive', 'telecaller', 'hr executive'],
+  'warehouse worker': ['delivery', 'driver'],
+};
+
 // WEF-based automation baselines (same as risk.service.ts)
 const AUTOMATION_BASELINES: Record<string, number> = {
   'bpo': 82, 'data entry': 78, 'telecaller': 75, 'receptionist': 65,
@@ -274,56 +302,57 @@ class SeekerService {
     const expandedSkills = [...new Set(rawUserSkills.flatMap(expandSkillToAliases))];
     const normalizedUserSkills = rawUserSkills.map(normalizeSkill);
 
-    console.log('raw skills:', rawUserSkills);
-    console.log('expanded to:', expandedSkills);
+    // Build title matching set: user's title + related titles
+    const userTitle = (profile.normalizedTitle || profile.jobTitle || '').toLowerCase().trim();
+    const relatedTitles = RELATED_TITLES[userTitle] || [];
+    const titleMatchSet = [...new Set([userTitle, ...relatedTitles])].filter(Boolean);
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000);
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 86400_000);
 
     let matchedJobs: any[];
 
+    // Build OR conditions: skill match OR title match
+    const orConditions: any[] = [];
     if (expandedSkills.length > 0) {
-      // Fetch candidate jobs — match on expanded alias list, case-insensitive via $toLower
-      matchedJobs = await JobListing.aggregate([
-        {
-          $match: {
-            city: profile.city,
-            scrapedAt: { $gte: thirtyDaysAgo },
-          },
-        },
-        {
-          $addFields: {
-            skillsLower: {
-              $map: { input: '$skills', as: 's', in: { $toLower: '$$s' } },
-            },
-          },
-        },
-        {
-          // Match if any job skill (lowercased) is in the expanded alias set
-          $match: {
-            skillsLower: { $in: expandedSkills },
-          },
-        },
-        {
-          $addFields: {
-            // Count how many of the expanded user skills appear in the job
-            matchScore: {
-              $size: { $setIntersection: ['$skillsLower', expandedSkills] },
-            },
-            totalSkills: { $size: '$skills' },
-          },
-        },
-        { $sort: { matchScore: -1, scrapedAt: -1 } },
-        { $limit: 150 }, // fetch more, we'll re-rank below
-      ]);
+      // Skill-based regex match (case-insensitive)
+      const skillRegexes = expandedSkills.map(s => new RegExp(`^${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'));
+      orConditions.push({ skills: { $in: skillRegexes } });
+    }
+    if (titleMatchSet.length > 0) {
+      // Title-based match
+      orConditions.push({ normalizedTitle: { $in: titleMatchSet } });
+    }
 
-      // ── Post-processing: fuzzy re-rank ────────────────────────────────────────
-      matchedJobs = matchedJobs
-        .map((job) => {
+    if (orConditions.length > 0) {
+      // Broad candidate fetch: recent jobs that match on skills OR title (no city hard filter)
+      const candidateJobs = await JobListing.find({
+        scrapedAt: { $gte: ninetyDaysAgo },
+        $or: orConditions,
+      })
+        .sort({ scrapedAt: -1 })
+        .limit(500)
+        .lean();
+
+      // ── Post-processing: multi-signal scoring ─────────────────────────────────
+      const userCityLower = (profile.city || '').toLowerCase().trim();
+
+      matchedJobs = candidateJobs
+        .map((job: any) => {
           const jobSkillsLower: string[] = (job.skills || []).map((s: string) =>
             s.toLowerCase().trim()
           );
+          const jobTitleLower = (job.normalizedTitle || job.title || '').toLowerCase().trim();
 
-          // For each job skill, check if it fuzzy-matches any user skill
+          // Skill scoring: canonical matches
+          const jobSkillsCanonical = jobSkillsLower.map(normalizeSkill);
+          const exactCanonicalMatches = jobSkillsCanonical.filter((s) =>
+            normalizedUserSkills.includes(s)
+          ).length;
+
+          // Skill scoring: expanded alias matches
+          const aliasMatches = jobSkillsLower.filter(s => expandedSkills.includes(s)).length;
+
+          // Skill scoring: fuzzy matches
           let fuzzyMatchCount = 0;
           for (const jobSkill of jobSkillsLower) {
             for (const userSkill of normalizedUserSkills) {
@@ -334,31 +363,46 @@ class SeekerService {
             }
           }
 
-          // Normalize job skills to canonical for accurate intersection
-          const jobSkillsCanonical = jobSkillsLower.map(normalizeSkill);
-          const exactCanonicalMatches = jobSkillsCanonical.filter((s) =>
-            normalizedUserSkills.includes(s)
-          ).length;
+          // Title scoring
+          const exactTitleMatch = jobTitleLower === userTitle ? 1 : 0;
+          const relatedTitleMatch = !exactTitleMatch && titleMatchSet.includes(jobTitleLower) ? 1 : 0;
 
-          // Weighted score: canonical matches worth more than alias/fuzzy matches
+          // City scoring
+          const jobCityLower = (job.city || '').toLowerCase().trim();
+          const cityMatch = jobCityLower === userCityLower ? 1 : 0;
+
+          // Combined weighted score
+          const matchScore = Math.max(exactCanonicalMatches, aliasMatches);
+          const totalSkills = job.skills?.length || 1;
           const weightedScore =
-            exactCanonicalMatches * 3 +
-            (job.matchScore - exactCanonicalMatches) * 2 +
-            fuzzyMatchCount * 1;
+            exactCanonicalMatches * 4 +
+            (aliasMatches - exactCanonicalMatches) * 2 +
+            fuzzyMatchCount * 1 +
+            exactTitleMatch * 6 +
+            relatedTitleMatch * 3 +
+            cityMatch * 5;
 
-          return { ...job, matchScore: job.matchScore, fuzzyMatchCount, weightedScore };
+          return {
+            ...job,
+            matchScore,
+            totalSkills,
+            fuzzyMatchCount,
+            weightedScore,
+            cityMatch,
+          };
         })
-        .sort((a, b) => b.weightedScore - a.weightedScore)
-        .slice(0, 50);
+        .filter((job) => job.weightedScore > 0)
+        .sort((a, b) => b.weightedScore - a.weightedScore || b.cityMatch - a.cityMatch)
+        .slice(0, 80);
 
     } else {
-      // No skills — fallback to city + recency
+      // No skills and no title — fallback to city + recency
       const raw = await JobListing.find({
-        city: profile.city,
-        scrapedAt: { $gte: thirtyDaysAgo },
+        scrapedAt: { $gte: ninetyDaysAgo },
+        ...(profile.city ? { city: { $regex: new RegExp(`^${profile.city}$`, 'i') } } : {}),
       })
         .sort({ scrapedAt: -1 })
-        .limit(50)
+        .limit(80)
         .lean();
 
       matchedJobs = raw.map((j: any) => ({
@@ -366,10 +410,9 @@ class SeekerService {
         matchScore: 0,
         totalSkills: j.skills?.length || 0,
         weightedScore: 0,
+        cityMatch: 1,
       }));
     }
-
-    console.log('matchedJobs after fuzzy re-rank:', matchedJobs.length);
 
     const starredIds = new Set(user.starredJobs.map((s: any) => String(s.jobListingId)));
     const results = matchedJobs.map((job: any) => ({
