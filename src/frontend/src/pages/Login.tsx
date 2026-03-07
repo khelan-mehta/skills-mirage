@@ -40,11 +40,12 @@ export default function Login() {
         await login(email, password);
       }
       navigate('/seeker');
-    } catch {}
+    } catch { }
   }
 
   function handleGitHub() {
-    window.location.href = '/api/v1/auth/github';
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+    window.location.href = `${apiBase}/auth/github`;
   }
 
   return (
@@ -65,17 +66,15 @@ export default function Login() {
         <div className="flex border border-mirage-border rounded-lg mb-8 overflow-hidden">
           <button
             onClick={() => { setIsSignUp(false); clearError(); }}
-            className={`flex-1 py-3 text-sm font-body transition-colors ${
-              !isSignUp ? 'bg-mirage-teal text-black' : 'text-white/50 hover:text-white'
-            }`}
+            className={`flex-1 py-3 text-sm font-body transition-colors ${!isSignUp ? 'bg-mirage-teal text-black' : 'text-white/50 hover:text-white'
+              }`}
           >
             SIGN IN
           </button>
           <button
             onClick={() => { setIsSignUp(true); clearError(); }}
-            className={`flex-1 py-3 text-sm font-body transition-colors ${
-              isSignUp ? 'bg-mirage-teal text-black' : 'text-white/50 hover:text-white'
-            }`}
+            className={`flex-1 py-3 text-sm font-body transition-colors ${isSignUp ? 'bg-mirage-teal text-black' : 'text-white/50 hover:text-white'
+              }`}
           >
             SIGN UP
           </button>
