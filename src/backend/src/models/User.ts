@@ -24,6 +24,15 @@ export interface IUser extends Document {
         duration: string;
         isFree: boolean;
       }>;
+      ragEnhanced?: boolean;
+      ragChunksUsed?: number;
+      ragInsights?: {
+        insights: string[];
+        hiddenStrengths: string[];
+        summary: string;
+      };
+      matchingSkills?: string[];
+      missingSkills?: string[];
       generatedAt: Date;
     };
   }>;
@@ -52,6 +61,15 @@ const StarredJobSchema = new Schema(
       totalWeeks: Number,
       hoursPerWeek: Number,
       steps: [ReskillStepSchema],
+      ragEnhanced: Boolean,
+      ragChunksUsed: Number,
+      ragInsights: {
+        insights: [String],
+        hiddenStrengths: [String],
+        summary: String,
+      },
+      matchingSkills: [String],
+      missingSkills: [String],
       generatedAt: Date,
     },
   },
