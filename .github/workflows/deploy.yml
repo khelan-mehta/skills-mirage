@@ -31,6 +31,7 @@ jobs:
         run: |
           rsync -av --delete \
             --exclude='.git' \
+            --exclude='.env' \
             --exclude='node_modules' \
             --exclude='src/frontend/node_modules' \
             --exclude='src/backend/node_modules' \
@@ -50,6 +51,7 @@ jobs:
           APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}
           NODE_ENV=production
           PORT=5000
+          FRONTEND_URL=http://${{ secrets.SERVER_IP }}:3600
           EOF
 
 
