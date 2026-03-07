@@ -60,8 +60,9 @@ jobs:
 
           cd /home/server/skills-mirage
 
-          # VITE_API_URL must be set so the frontend build bakes in the correct backend URL
+          # Bake backend URL and raw server IP into the frontend bundle at build time
           export VITE_API_URL="http://${{ secrets.SERVER_IP }}:3700/api/v1"
+          export VITE_SERVER_IP="${{ secrets.SERVER_IP }}"
 
           # Tear down old containers (preserves named volumes = data safe)
           docker compose -f docker-compose.prod.yml down --remove-orphans

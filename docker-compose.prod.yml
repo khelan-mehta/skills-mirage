@@ -67,6 +67,8 @@ services:
       args:
         # API URL must point to the host-accessible backend port
         - VITE_API_URL=${VITE_API_URL:-http://localhost:3700/api/v1}
+        # Raw server IP — baked in for OAuth redirects and other absolute URLs
+        - VITE_SERVER_IP=${VITE_SERVER_IP:-localhost}
     container_name: skills-mirage-web
     restart: unless-stopped
     ports:
