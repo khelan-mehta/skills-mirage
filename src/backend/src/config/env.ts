@@ -11,10 +11,10 @@ export const env = {
   // Auth
   JWT_SECRET: process.env.JWT_SECRET || 'skills-mirage-dev-secret-change-in-prod',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
-  // GitHub OAuth
-  GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || '',
-  GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || '',
-  GITHUB_CALLBACK_URL: process.env.GITHUB_CALLBACK_URL || 'http://localhost:5000/api/v1/auth/github/callback',
+  // GitHub OAuth (env vars use GH_ prefix)
+  GITHUB_CLIENT_ID: process.env.GH_CLIENT_ID || process.env.GITHUB_CLIENT_ID || '',
+  GITHUB_CLIENT_SECRET: process.env.GH_CLIENT_SECRET || process.env.GITHUB_CLIENT_SECRET || '',
+  GITHUB_CALLBACK_URL: process.env.GH_CALLBACK_URL || process.env.GITHUB_CALLBACK_URL || 'http://localhost:5000/api/v1/auth/github/callback',
   // ChromaDB
   CHROMA_HOST: process.env.CHROMA_HOST || 'localhost',
   CHROMA_PORT: parseInt(process.env.CHROMA_PORT || '8000', 10),
