@@ -18,6 +18,14 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+          # Keep-alive so long docker builds don't break the pipe
+          cat >> ~/.ssh/config << 'SSHEOF'
+          Host *
+            ServerAliveInterval 60
+            ServerAliveCountMax 30
+            ConnectTimeout 30
+          SSHEOF
+          chmod 600 ~/.ssh/config
 
       - name: Sync code to server
         run: |
