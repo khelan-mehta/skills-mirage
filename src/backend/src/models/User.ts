@@ -27,7 +27,7 @@ export interface IUser extends Document {
       ragEnhanced?: boolean;
       ragChunksUsed?: number;
       ragInsights?: {
-        insights: string[];
+        insights: any[];
         hiddenStrengths: string[];
         summary: string;
       };
@@ -64,7 +64,7 @@ const StarredJobSchema = new Schema(
       ragEnhanced: Boolean,
       ragChunksUsed: Number,
       ragInsights: {
-        insights: [String],
+        insights: [Schema.Types.Mixed],
         hiddenStrengths: [String],
         summary: String,
       },
