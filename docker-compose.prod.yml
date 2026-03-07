@@ -47,6 +47,8 @@ services:
     ports:
       - '3700:5000'   # ← only port exposed to the outside world
     environment:
+      - MONGODB_URI=mongodb+srv://Khelan05:KrxRwjRwkhgYUdwh@cluster0.c6y9phd.mongodb.net/skills-mirage?retryWrites=true&w=majority&appName=Cluster0
+      - REDIS_URL=redis://redis:6379
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
       - PORT=5000
