@@ -1,5 +1,4 @@
-# syntax=docker/dockerfile:1
-FROM node:20-alpine AS builder
+FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -10,8 +9,7 @@ COPY . .
 # Compile TypeScript
 RUN npx tsc
 
-# ── Production image ───────────────────────────────────────────────────────────
-FROM node:20-alpine
+FROM node:20-bookworm-slim
 
 WORKDIR /app
 
