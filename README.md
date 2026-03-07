@@ -4,7 +4,7 @@
 
 **India's first open workforce intelligence system**
 
-Built for **HACKaMINeD 2026** by [devx labs](https://devxlabs.ai)
+Built for **HACKaMINeD 2026** by Team Phoenix
 
 [![React](https://img.shields.io/badge/React_18-20232A?style=flat&logo=react&logoColor=61DAFB)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)](https://typescriptlang.org)
