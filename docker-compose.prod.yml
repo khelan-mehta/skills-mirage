@@ -1,0 +1,80 @@
+version: '3.8'
+
+# ─── Production compose ───────────────────────────────────────────────────────
+# Internal services (mongo, redis, chroma) are NOT exposed to the host.
+# Only the frontend (3600) and backend (3700) are reachable from outside.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d --build
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: skills-mirage-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: skills-mirage
+    # NOT exposed to host — internal network only
+
+  redis:
+    image: redis:7-alpine
+    container_name: skills-mirage-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    # NOT exposed to host — internal network only
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: skills-mirage-chroma
+    restart: unless-stopped
+    volumes:
+      - chroma-data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    # NOT exposed to host — internal network only
+
+  backend:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    container_name: skills-mirage-api
+    restart: unless-stopped
+    ports:
+      - '3700:5000'   # ← only port exposed to the outside world
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/skills-mirage
+      - REDIS_URL=redis://redis:6379
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - PORT=5000
+      - NODE_ENV=production
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+      - redis
+      - chromadb
+
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+      args:
+        # API URL must point to the host-accessible backend port
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:3700/api/v1}
+    container_name: skills-mirage-web
+    restart: unless-stopped
+    ports:
+      - '3600:3000'   # ← only port exposed to the outside world
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:
+  redis-data:
+  chroma-data:

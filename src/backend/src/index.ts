@@ -16,6 +16,7 @@ import { chatRoutes } from './routes/chat.routes';
 import { graphRoutes } from './routes/graph.routes';
 import { scrapeRoutes } from './routes/scrape.routes';
 import { seekerRoutes } from './routes/seeker.routes';
+import { hiringRoutes } from './routes/hiring.routes';
 import { authMiddleware } from './middleware/auth';
 import { setupSocketHandlers } from './socket';
 import { setScrapeIO, startScrapeWorker } from './jobs/scrapeQueue';
@@ -38,6 +39,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/scrape', scrapeRoutes);
+app.use('/api/v1/hiring', hiringRoutes);
 
 // Routes — Protected
 app.use('/api/v1/seeker', authMiddleware, seekerRoutes);

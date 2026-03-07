@@ -11,6 +11,7 @@ import SeekerDashboard from './pages/SeekerDashboard';
 import ReskillCalendar from './pages/ReskillCalendar';
 import Settings from './pages/Settings';
 import Chat from './pages/Chat';
+import HiringDashboard from './pages/HiringDashboard';
 import ProtectedRoute from './components/shared/ProtectedRoute';
 import { useAuthStore } from './stores/authStore';
 
@@ -40,6 +41,7 @@ function AppRoutes() {
         <Route path="/" element={<Landing />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/hiring" element={<HiringDashboard />} />
 
         {/* Auth required */}
         <Route path="/onboarding" element={

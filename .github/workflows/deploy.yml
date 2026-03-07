@@ -1,0 +1,66 @@
+name: Deploy Skills Mirage (Docker)
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Sync code to server
+        run: |
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='src/frontend/node_modules' \
+            --exclude='src/backend/node_modules' \
+            --exclude='src/backend/dist' \
+            ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/home/server/skills-mirage/
+
+      - name: Write .env on server
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "cat > /home/server/skills-mirage/.env" << EOF
+          MONGODB_URI=mongodb://mongodb:27017/skills-mirage
+          REDIS_URL=redis://redis:6379
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          GH_CLIENT_ID=${{ secrets.GH_CLIENT_ID }}
+          GH_CLIENT_SECRET=${{ secrets.GH_CLIENT_SECRET }}
+          GH_CALLBACK_URL=http://${{ secrets.SERVER_IP }}:3700/api/v1/auth/github/callback
+          APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}
+          NODE_ENV=production
+          PORT=5000
+          EOF
+
+
+      - name: Build & run all containers
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+          set -e
+
+          cd /home/server/skills-mirage
+
+          # VITE_API_URL must be set so the frontend build bakes in the correct backend URL
+          export VITE_API_URL="http://${{ secrets.SERVER_IP }}:3700/api/v1"
+
+          # Tear down old containers (preserves named volumes = data safe)
+          docker compose -f docker-compose.prod.yml down --remove-orphans
+
+          # Build fresh images and start everything
+          docker compose -f docker-compose.prod.yml up -d --build
+
+          # Clean up dangling images to save disk space
+          docker image prune -f
+          EOF

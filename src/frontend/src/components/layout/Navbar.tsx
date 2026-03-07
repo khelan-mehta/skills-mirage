@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/authStore';
 
 const publicLinks = [
   { label: 'DASHBOARD', path: '/dashboard' },
+  { label: 'HIRE', path: '/hiring' },
 ];
 
 const authLinks = [
@@ -33,11 +34,10 @@ export default function Navbar() {
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
           ? 'bg-mirage-bg/80 backdrop-blur-md border-b border-mirage-border'
           : 'bg-transparent'
-      }`}
+        }`}
     >
       <div className="max-w-[1400px] mx-auto px-8 py-5 flex items-center justify-between">
         <Link to="/" className="font-body font-bold text-white text-lg tracking-tight">
@@ -49,11 +49,10 @@ export default function Navbar() {
             <Link
               key={link.path}
               to={link.path}
-              className={`nav-link relative transition-colors duration-300 ${
-                location.pathname === link.path
+              className={`nav-link relative transition-colors duration-300 ${location.pathname === link.path
                   ? 'text-white'
                   : 'text-white/50 hover:text-white'
-              }`}
+                }`}
             >
               {link.label}
               {location.pathname === link.path && (
