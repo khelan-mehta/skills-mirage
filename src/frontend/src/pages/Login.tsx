@@ -44,8 +44,7 @@ export default function Login() {
   }
 
   function handleGitHub() {
-    const serverIp = import.meta.env.VITE_SERVER_IP || 'localhost';
-    window.location.href = `http://${serverIp}:3700/api/v1/auth/github`;
+    window.location.href = `http://${window.location.hostname}:3700/api/v1/auth/github`;
   }
 
   return (
